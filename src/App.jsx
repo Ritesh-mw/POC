@@ -9,7 +9,7 @@ export default function App() {
 
   useEffect(() => {
     // Initialize LaunchDarkly client
-    const client = LDClient.initialize("68a6b050e1f88309c2109156", {
+    const client = LDClient.initialize("Client-side ID", {
       key: "anonymous-user", // anonymous user
     });
 
