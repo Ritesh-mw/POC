@@ -15,14 +15,14 @@ export default function App() {
 
     client.on("ready", () => {
       // Get initial flag values
-      const feedbackFlag = client.variation("discount-button-enabled", false);
+      const feedbackFlag = client.variation("feedback-form-enabled", false);
       const productPageFlag = client.variation("product-page-enabled", false);
 
       setShowFeedback(feedbackFlag);
       setShowProductPage(productPageFlag);
 
       // Update if feedback form flag changes
-      client.on("change:discount-button-enabled", (newValue) => {
+      client.on("change:feedback-form-enabled", (newValue) => {
         setShowFeedback(newValue);
       });
 
