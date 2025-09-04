@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import * as LDClient from "launchdarkly-js-client-sdk";
+import { usePostHog } from 'posthog-js/react'; // Use PostHog React hook instead
 
 export default function App() {
   const [showFeedback, setShowFeedback] = useState(false);
@@ -7,31 +7,37 @@ export default function App() {
   const [openModal, setOpenModal] = useState(false);
   const [openFeedback, setOpenFeedback] = useState(false); // for feedback modal
 
-  useEffect(() => {
-    // Initialize LaunchDarkly client
-    const client = LDClient.initialize("68a6b050e1f88309c2109156", {
-      key: "anonymous-user", // anonymous user
-    });
+  // Get PostHog instance from React context (already initialized in main.jsx)
+  const posthog = usePostHog();
 
-    client.on("ready", () => {
-      // Get initial flag values
-      const feedbackFlag = client.variation("feedback-form-enabled", false);
-      const productPageFlag = client.variation("product-page-enabled", false);
+  useEffect(() => {
+    // Get feature flag values from PostHog (no need to initialize since it's done in main.jsx)
+    const checkFeatureFlags = () => {
+      // Get initial flag values from PostHog
+      // PostHog uses different flag names, so update these to match your PostHog feature flags
+      const feedbackFlag = posthog?.isFeatureEnabled('feedback-form-enabled') || false;
+      const productPageFlag = posthog?.isFeatureEnabled('product-page-enabled') || false;
 
       setShowFeedback(feedbackFlag);
       setShowProductPage(productPageFlag);
+    };
 
-      // Update if feedback form flag changes
-      client.on("change:feedback-form-enabled", (newValue) => {
-        setShowFeedback(newValue);
-      });
+    // Check feature flags when PostHog is available
+    if (posthog) {
+      checkFeatureFlags();
 
-      // Update if product page flag changes
-      client.on("change:product-page-enabled", (newValue) => {
-        setShowProductPage(newValue);
-      });
-    });
-  }, []);
+      // PostHog doesn't have real-time flag updates like LaunchDarkly
+      // If you need real-time updates, you can set up a polling mechanism
+      const pollInterval = setInterval(() => {
+        checkFeatureFlags();
+      }, 30000); // Poll every 30 seconds for flag changes
+
+      // Cleanup interval on component unmount
+      return () => {
+        clearInterval(pollInterval);
+      };
+    }
+  }, [posthog]);
 
   return (
     <div style={{ fontFamily: "Inter, Arial, sans-serif", backgroundColor: "#f9fafb", minHeight: "100vh", color: "#111" }}>
@@ -60,7 +66,7 @@ export default function App() {
           <p>High-performance solution designed to scale with your business.</p>
         </div>
 
-        {/* Product B uses LaunchDarkly flag */}
+        {/* Product B uses PostHog feature flag */}
         <div
           style={{
             backgroundColor: "white",
@@ -72,7 +78,15 @@ export default function App() {
             cursor: showProductPage ? "pointer" : "not-allowed",
             opacity: showProductPage ? 1 : 0.6,
           }}
-          onClick={() => showProductPage && setOpenModal(true)}
+          onClick={() => {
+            if (showProductPage) {
+              // Track the click event in PostHog for analytics
+              posthog.capture('product_b_clicked', {
+                feature_flag_enabled: true,
+              });
+              setOpenModal(true);
+            }
+          }}
         >
           <h3 style={{ fontSize: "1.25rem", fontWeight: "600" }}>Product B</h3>
           <p>{showProductPage ? "Click to learn more." : "Coming soon."}</p>
@@ -125,7 +139,11 @@ export default function App() {
                 borderRadius: "0.5rem",
                 cursor: "pointer",
               }}
-              onClick={() => setOpenModal(false)}
+              onClick={() => {
+                // Track modal close event in PostHog
+                posthog.capture('product_b_modal_closed');
+                setOpenModal(false);
+              }}
             >
               Close
             </button>
@@ -133,12 +151,18 @@ export default function App() {
         </div>
       )}
 
-      {/* Feedback Button (Feature Flag) */}
+      {/* Feedback Button (PostHog Feature Flag) */}
       {showFeedback && (
         <section style={{ padding: "3rem 2rem", backgroundColor: "#f3f4f6", textAlign: "center" }}>
           <h2 style={{ fontSize: "1.75rem", fontWeight: "600", marginBottom: "1.5rem" }}>We value your feedback</h2>
           <button
-            onClick={() => setOpenFeedback(true)}
+            onClick={() => {
+              // Track feedback button click in PostHog
+              posthog.capture('feedback_button_clicked', {
+                feature_flag_enabled: true,
+              });
+              setOpenFeedback(true);
+            }}
             style={{
               padding: "0.75rem 1.5rem",
               fontSize: "1rem",
@@ -184,7 +208,19 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ fontSize: "1.5rem", fontWeight: "600", marginBottom: "1rem" }}>Feedback Form</h2>
-            <form style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <form
+              style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                // Track feedback submission in PostHog
+                posthog.capture('feedback_submitted', {
+                  feature_flag_enabled: true,
+                });
+                // Here you would normally handle the form submission
+                alert('Feedback submitted! (This is just a demo)');
+                setOpenFeedback(false);
+              }}
+            >
               <input type="text" placeholder="Your Name" style={{ padding: "0.75rem", border: "1px solid #ccc", borderRadius: "0.5rem" }} />
               <input type="email" placeholder="Your Email" style={{ padding: "0.75rem", border: "1px solid #ccc", borderRadius: "0.5rem" }} />
               <textarea placeholder="Your Feedback" rows="4" style={{ padding: "0.75rem", border: "1px solid #ccc", borderRadius: "0.5rem" }} />
@@ -213,7 +249,11 @@ export default function App() {
                 borderRadius: "0.5rem",
                 cursor: "pointer",
               }}
-              onClick={() => setOpenFeedback(false)}
+              onClick={() => {
+                // Track feedback modal close event in PostHog
+                posthog.capture('feedback_modal_closed');
+                setOpenFeedback(false);
+              }}
             >
               Close
             </button>
