@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { usePostHog } from 'posthog-js/react'; // Use PostHog React hook instead
+import { Link, useNavigate } from 'react-router-dom';
+import { clearToken } from './api.js'
 
 export default function App() {
   const [showFeedback, setShowFeedback] = useState(false);
@@ -48,6 +50,12 @@ export default function App() {
           <a href="#" style={{ margin: "0 1rem", color: "white", textDecoration: "none" }}>Home</a>
           <a href="#" style={{ margin: "0 1rem", color: "white", textDecoration: "none" }}>Products</a>
           <a href="#" style={{ margin: "0 1rem", color: "white", textDecoration: "none" }}>About</a>
+          <button
+            onClick={() => { clearToken(); window.location.href = '/auth'; }}
+            style={{ margin: "0 1rem", color: "white", textDecoration: "none", background: 'transparent', border: '1px solid #fff', padding: '6px 10px', borderRadius: 6 }}
+          >
+            Logout
+          </button>
         </nav>
       </header>
 
