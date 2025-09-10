@@ -22,7 +22,7 @@ export default function Login() {
         }
         try {
             setLoading(true);
-            const { token } = await apiPost('/api/login', { email, password });
+            const { token } = await apiPost('api/login', { email, password });
             saveToken(token);
             navigate('/dashboard');
         } catch (err) {
