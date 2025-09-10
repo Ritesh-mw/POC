@@ -5,11 +5,13 @@ import authRoutes from './routes/auth.js';
 const app = express();
 const PORT = 5000;
 
-app.use(cors());
 app.use(express.json());
 
 app.use(cors({
-    origin: "https://papaya-choux-8425ed.netlify.app", // your Netlify URL
+    origin: [
+        "https://papaya-choux-8425ed.netlify.app",
+        "https://68c11a5846769f20287a36c9--papaya-choux-8425ed.netlify.app"
+    ], // Allow both your main Netlify URL and preview deployments
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
