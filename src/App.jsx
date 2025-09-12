@@ -6,6 +6,7 @@ import { clearToken } from './api.js'
 export default function App() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [showProductPage, setShowProductPage] = useState(false);
+  const [showProductAPage, setShowProductAPage] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [openFeedback, setOpenFeedback] = useState(false); // for feedback modal
 
@@ -19,9 +20,11 @@ export default function App() {
       // PostHog uses different flag names, so update these to match your PostHog feature flags
       const feedbackFlag = posthog?.isFeatureEnabled('feedback-form-enabled') || false;
       const productPageFlag = posthog?.isFeatureEnabled('product-page-enabled') || false;
+      const productAFlag = posthog?.isFeatureEnabled('product-a-enabled') || false;
 
       setShowFeedback(feedbackFlag);
       setShowProductPage(productPageFlag);
+      setShowProductAPage(productAFlag);
     };
 
     // Check feature flags when PostHog is available
@@ -69,12 +72,11 @@ export default function App() {
 
       {/* Main Content */}
       <main style={{ padding: "3rem 2rem", display: "flex", justifyContent: "center", gap: "2rem", flexWrap: "wrap" }}>
-        <div style={{ backgroundColor: "white", padding: "2rem", borderRadius: "1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", width: "300px", textAlign: "center" }}>
+        {/* <div style={{ backgroundColor: "white", padding: "2rem", borderRadius: "1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", width: "300px", textAlign: "center" }}>
           <h3 style={{ fontSize: "1.25rem", fontWeight: "600" }}>Product A</h3>
           <p>High-performance solution designed to scale with your business.</p>
-        </div>
+        </div> */}
 
-        {/* Product B uses PostHog feature flag */}
         <div
           style={{
             backgroundColor: "white",
@@ -89,6 +91,32 @@ export default function App() {
           onClick={() => {
             if (showProductPage) {
               // Track the click event in PostHog for analytics
+              posthog.capture('product_a_clicked', {
+                feature_flag_enabled: true,
+              });
+              setOpenModal(true);
+            }
+          }}
+        >
+          <h3 style={{ fontSize: "1.25rem", fontWeight: "600" }}>Product A</h3>
+          <p>{showProductPage ? "Click to learn more." : "Coming soon."}</p>
+        </div>
+
+        {/* Product B uses PostHog feature flag */}
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "2rem",
+            borderRadius: "1rem",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            width: "300px",
+            textAlign: "center",
+            cursor: showProductAPage ? "pointer" : "not-allowed",
+            opacity: showProductAPage ? 1 : 0.6,
+          }}
+          onClick={() => {
+            if (showProductAPage) {
+              // Track the click event in PostHog for analytics
               posthog.capture('product_b_clicked', {
                 feature_flag_enabled: true,
               });
@@ -97,7 +125,7 @@ export default function App() {
           }}
         >
           <h3 style={{ fontSize: "1.25rem", fontWeight: "600" }}>Product B</h3>
-          <p>{showProductPage ? "Click to learn more." : "Coming soon."}</p>
+          <p>{showProductAPage ? "Click to learn more." : "Coming soon."}</p>
         </div>
 
         <div style={{ backgroundColor: "white", padding: "2rem", borderRadius: "1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", width: "300px", textAlign: "center" }}>
