@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { usePostHog } from 'posthog-js/react'; // Use PostHog React hook instead
+import { usePostHog, useFeatureFlagEnabled } from 'posthog-js/react'; // Fixed import
 import { Link, useNavigate } from 'react-router-dom';
 import { clearToken } from './api.js'
 
@@ -8,51 +8,22 @@ export default function App() {
   const [showProductPage, setShowProductPage] = useState(false);
   const [showProductAPage, setShowProductAPage] = useState(false);
   const [openModal, setOpenModal] = useState(false);
-  const [openFeedback, setOpenFeedback] = useState(false); // for feedback modal
+  const [openFeedback, setOpenFeedback] = useState(false);
 
-  // Get PostHog instance from React context (already initialized in main.jsx)
+  // Get PostHog instance from React context
   const posthog = usePostHog();
 
+  // Use PostHog feature flag hooks
+  const feedbackFlagEnabled = useFeatureFlagEnabled('feedback-form-enabled');
+  const productPageFlagEnabled = useFeatureFlagEnabled('product-page-enabled');
+  const productAFlagEnabled = useFeatureFlagEnabled('product-a-enabled');
+
   useEffect(() => {
-    // Get feature flag values from PostHog
-    const checkFeatureFlags = () => {
-      if (!posthog) return;
-
-      // Get initial flag values from PostHog
-      const feedbackFlag = posthog.isFeatureEnabled('feedback-form-enabled') || false;
-      const productPageFlag = posthog.isFeatureEnabled('product-page-enabled') || false;
-      const productAFlag = posthog.isFeatureEnabled('product-a-enabled') || false;
-
-      setShowFeedback(feedbackFlag);
-      setShowProductPage(productPageFlag);
-      setShowProductAPage(productAFlag);
-    };
-
-    // Check feature flags when PostHog is available
-    if (posthog) {
-      // Force reload feature flags to ensure we have the latest values
-      posthog.reloadFeatureFlags().then(() => {
-        checkFeatureFlags();
-      });
-
-      // Set up real-time feature flag updates
-      const handleFeatureFlagUpdate = () => {
-        checkFeatureFlags();
-      };
-
-      // Listen for feature flag changes
-      posthog.on('featureFlags', handleFeatureFlagUpdate);
-
-      // Also listen for when PostHog is fully loaded
-      posthog.on('$loaded', handleFeatureFlagUpdate);
-
-      // Cleanup event listeners on component unmount
-      return () => {
-        posthog.off('featureFlags', handleFeatureFlagUpdate);
-        posthog.off('$loaded', handleFeatureFlagUpdate);
-      };
-    }
-  }, [posthog]);
+    // Update state when feature flags change
+    setShowFeedback(feedbackFlagEnabled || false);
+    setShowProductPage(productPageFlagEnabled || false);
+    setShowProductAPage(productAFlagEnabled || false);
+  }, [feedbackFlagEnabled, productPageFlagEnabled, productAFlagEnabled]);
 
   return (
     <div style={{ fontFamily: "Inter, Arial, sans-serif", backgroundColor: "#f9fafb", minHeight: "100vh", color: "#111" }}>
@@ -82,10 +53,29 @@ export default function App() {
 
       {/* Main Content */}
       <main style={{ padding: "3rem 2rem", display: "flex", justifyContent: "center", gap: "2rem", flexWrap: "wrap" }}>
-        {/* <div style={{ backgroundColor: "white", padding: "2rem", borderRadius: "1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", width: "300px", textAlign: "center" }}>
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "2rem",
+            borderRadius: "1rem",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            width: "300px",
+            textAlign: "center",
+            cursor: showProductAPage ? "pointer" : "not-allowed",
+            opacity: showProductAPage ? 1 : 0.6,
+          }}
+          onClick={() => {
+            if (showProductAPage) {
+              posthog?.capture('product_a_clicked', {
+                feature_flag_enabled: true,
+              });
+              setOpenModal(true);
+            }
+          }}
+        >
           <h3 style={{ fontSize: "1.25rem", fontWeight: "600" }}>Product A</h3>
-          <p>High-performance solution designed to scale with your business.</p>
-        </div> */}
+          <p>{showProductAPage ? "Click to learn more." : "Coming soon."}</p>
+        </div>
 
         <div
           style={{
@@ -100,34 +90,7 @@ export default function App() {
           }}
           onClick={() => {
             if (showProductPage) {
-              // Track the click event in PostHog for analytics
-              posthog.capture('product_a_clicked', {
-                feature_flag_enabled: true,
-              });
-              setOpenModal(true);
-            }
-          }}
-        >
-          <h3 style={{ fontSize: "1.25rem", fontWeight: "600" }}>Product A</h3>
-          <p>{showProductPage ? "Click to learn more." : "Coming soon."}</p>
-        </div>
-
-        {/* Product B uses PostHog feature flag */}
-        <div
-          style={{
-            backgroundColor: "white",
-            padding: "2rem",
-            borderRadius: "1rem",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            width: "300px",
-            textAlign: "center",
-            cursor: showProductAPage ? "pointer" : "not-allowed",
-            opacity: showProductAPage ? 1 : 0.6,
-          }}
-          onClick={() => {
-            if (showProductAPage) {
-              // Track the click event in PostHog for analytics
-              posthog.capture('product_b_clicked', {
+              posthog?.capture('product_b_clicked', {
                 feature_flag_enabled: true,
               });
               setOpenModal(true);
@@ -135,7 +98,7 @@ export default function App() {
           }}
         >
           <h3 style={{ fontSize: "1.25rem", fontWeight: "600" }}>Product B</h3>
-          <p>{showProductAPage ? "Click to learn more." : "Coming soon."}</p>
+          <p>{showProductPage ? "Click to learn more." : "Coming soon."}</p>
         </div>
 
         <div style={{ backgroundColor: "white", padding: "2rem", borderRadius: "1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", width: "300px", textAlign: "center" }}>
@@ -144,7 +107,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Product B Modal */}
+      {/* Product Modal */}
       {openModal && (
         <div
           style={{
@@ -173,8 +136,8 @@ export default function App() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ fontSize: "1.5rem", fontWeight: "600", marginBottom: "1rem" }}>Product B Details</h2>
-            <p>This is where you can provide more information about Product B.</p>
+            <h2 style={{ fontSize: "1.5rem", fontWeight: "600", marginBottom: "1rem" }}>Product Details</h2>
+            <p>This is where you can provide more information about the product.</p>
             <button
               style={{
                 marginTop: "1.5rem",
@@ -186,8 +149,7 @@ export default function App() {
                 cursor: "pointer",
               }}
               onClick={() => {
-                // Track modal close event in PostHog
-                posthog.capture('product_b_modal_closed');
+                posthog?.capture('product_modal_closed');
                 setOpenModal(false);
               }}
             >
@@ -203,8 +165,7 @@ export default function App() {
           <h2 style={{ fontSize: "1.75rem", fontWeight: "600", marginBottom: "1.5rem" }}>We value your feedback</h2>
           <button
             onClick={() => {
-              // Track feedback button click in PostHog
-              posthog.capture('feedback_button_clicked', {
+              posthog?.capture('feedback_button_clicked', {
                 feature_flag_enabled: true,
               });
               setOpenFeedback(true);
@@ -258,11 +219,9 @@ export default function App() {
               style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
               onSubmit={(e) => {
                 e.preventDefault();
-                // Track feedback submission in PostHog
-                posthog.capture('feedback_submitted', {
+                posthog?.capture('feedback_submitted', {
                   feature_flag_enabled: true,
                 });
-                // Here you would normally handle the form submission
                 alert('Feedback submitted! (This is just a demo)');
                 setOpenFeedback(false);
               }}
@@ -296,8 +255,7 @@ export default function App() {
                 cursor: "pointer",
               }}
               onClick={() => {
-                // Track feedback modal close event in PostHog
-                posthog.capture('feedback_modal_closed');
+                posthog?.capture('feedback_modal_closed');
                 setOpenFeedback(false);
               }}
             >
