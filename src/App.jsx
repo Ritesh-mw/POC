@@ -14,13 +14,14 @@ export default function App() {
   const posthog = usePostHog();
 
   useEffect(() => {
-    // Get feature flag values from PostHog (no need to initialize since it's done in main.jsx)
+    // Get feature flag values from PostHog
     const checkFeatureFlags = () => {
+      if (!posthog) return;
+
       // Get initial flag values from PostHog
-      // PostHog uses different flag names, so update these to match your PostHog feature flags
-      const feedbackFlag = posthog?.isFeatureEnabled('feedback-form-enabled') || false;
-      const productPageFlag = posthog?.isFeatureEnabled('product-page-enabled') || false;
-      const productAFlag = posthog?.isFeatureEnabled('product-a-enabled') || false;
+      const feedbackFlag = posthog.isFeatureEnabled('feedback-form-enabled') || false;
+      const productPageFlag = posthog.isFeatureEnabled('product-page-enabled') || false;
+      const productAFlag = posthog.isFeatureEnabled('product-a-enabled') || false;
 
       setShowFeedback(feedbackFlag);
       setShowProductPage(productPageFlag);
@@ -29,17 +30,26 @@ export default function App() {
 
     // Check feature flags when PostHog is available
     if (posthog) {
-      checkFeatureFlags();
-
-      // PostHog doesn't have real-time flag updates like LaunchDarkly
-      // If you need real-time updates, you can set up a polling mechanism
-      const pollInterval = setInterval(() => {
+      // Force reload feature flags to ensure we have the latest values
+      posthog.reloadFeatureFlags().then(() => {
         checkFeatureFlags();
-      }, 30000); // Poll every 30 seconds for flag changes
+      });
 
-      // Cleanup interval on component unmount
+      // Set up real-time feature flag updates
+      const handleFeatureFlagUpdate = () => {
+        checkFeatureFlags();
+      };
+
+      // Listen for feature flag changes
+      posthog.on('featureFlags', handleFeatureFlagUpdate);
+
+      // Also listen for when PostHog is fully loaded
+      posthog.on('$loaded', handleFeatureFlagUpdate);
+
+      // Cleanup event listeners on component unmount
       return () => {
-        clearInterval(pollInterval);
+        posthog.off('featureFlags', handleFeatureFlagUpdate);
+        posthog.off('$loaded', handleFeatureFlagUpdate);
       };
     }
   }, [posthog]);
