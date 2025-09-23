@@ -12,6 +12,7 @@ export default function App() {
 
   // Get PostHog instance from React context
   const posthog = usePostHog();
+  const navigate = useNavigate();
 
   // Use PostHog feature flag hooks
   const feedbackFlagEnabled = useFeatureFlagEnabled('feedback-form-enabled');
@@ -25,6 +26,15 @@ export default function App() {
     setShowProductAPage(productAFlagEnabled || false);
   }, [feedbackFlagEnabled, productPageFlagEnabled, productAFlagEnabled]);
 
+  const handleLogout = () => {
+    clearToken();
+    try {
+      // Reset PostHog identity so next user is anonymous until identified
+      posthog?.reset();
+    } catch (_) { }
+    window.location.href = '/auth';
+  };
+
   return (
     <div style={{ fontFamily: "Inter, Arial, sans-serif", backgroundColor: "#f9fafb", minHeight: "100vh", color: "#111" }}>
       {/* Header */}
@@ -35,7 +45,7 @@ export default function App() {
           <a href="#" style={{ margin: "0 1rem", color: "white", textDecoration: "none" }}>Products</a>
           <a href="#" style={{ margin: "0 1rem", color: "white", textDecoration: "none" }}>About</a>
           <button
-            onClick={() => { clearToken(); window.location.href = '/auth'; }}
+            onClick={handleLogout}
             style={{ margin: "0 1rem", color: "white", textDecoration: "none", background: 'transparent', border: '1px solid #fff', padding: '6px 10px', borderRadius: 6 }}
           >
             Logout

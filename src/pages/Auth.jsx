@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiPost, saveToken } from '../api.js';
+import posthog from 'posthog-js';
 
 export default function Auth() {
     const navigate = useNavigate();
@@ -12,6 +13,16 @@ export default function Auth() {
     const [loading, setLoading] = useState(false);
 
     const isValidEmail = (val) => /[^\s@]+@[^\s@]+\.[^\s@]+/.test(val);
+
+    const identifyWithPostHog = (username) => {
+        try {
+            if (!username) return;
+            // Use email as distinct_id and set username as a person property
+            posthog.identify(username, { username });
+        } catch (e) {
+            // noop
+        }
+    };
 
     const onSubmit = async (e) => {
         e.preventDefault();
@@ -33,10 +44,12 @@ export default function Auth() {
                 // Auto-login after signup
                 const { token } = await apiPost('/api/login', { email, password });
                 saveToken(token);
+                identifyWithPostHog(email);
                 navigate('/');
             } else {
                 const { token } = await apiPost('/api/login', { email, password });
                 saveToken(token);
+                identifyWithPostHog(email);
                 navigate('/');
             }
         } catch (err) {
