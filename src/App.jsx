@@ -1,37 +1,29 @@
-import React, { useEffect, useState } from "react";
-import { usePostHog, useFeatureFlagEnabled } from 'posthog-js/react'; // Fixed import
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { useAnalytics } from './analytics/posthog/events.js';
+import { useFeedbackFormFlag, useProductPageFlag, useProductAFlag, useProductCFlag } from './analytics/posthog/flags.js';
+import { resetIdentity, optOutAnalytics } from './analytics/posthog/identity.js';
+import { useNavigate } from 'react-router-dom';
 import { clearToken } from './api.js'
 
 export default function App() {
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [showProductPage, setShowProductPage] = useState(false);
-  const [showProductAPage, setShowProductAPage] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [openFeedback, setOpenFeedback] = useState(false);
 
-  // Get PostHog instance from React context
-  const posthog = usePostHog();
+  const { capture, events } = useAnalytics();
   const navigate = useNavigate();
 
-  // Use PostHog feature flag hooks
-  const feedbackFlagEnabled = useFeatureFlagEnabled('feedback-form-enabled');
-  const productPageFlagEnabled = useFeatureFlagEnabled('product-page-enabled');
-  const productAFlagEnabled = useFeatureFlagEnabled('product-a-enabled');
+  // Use centralized feature flag hooks
+  const feedbackFlagEnabled = useFeedbackFormFlag();
+  const productPageFlagEnabled = useProductPageFlag();
+  const productAFlagEnabled = useProductAFlag();
+  const productCFlagEnabled = useProductCFlag();
 
-  useEffect(() => {
-    // Update state when feature flags change
-    setShowFeedback(feedbackFlagEnabled || false);
-    setShowProductPage(productPageFlagEnabled || false);
-    setShowProductAPage(productAFlagEnabled || false);
-  }, [feedbackFlagEnabled, productPageFlagEnabled, productAFlagEnabled]);
+  // No local mirroring of feature flags needed; use hooks directly
 
   const handleLogout = () => {
     clearToken();
-    try {
-      // Reset PostHog identity so next user is anonymous until identified
-      posthog?.reset();
-    } catch (_) { }
+    optOutAnalytics();
+    resetIdentity();
     window.location.href = '/auth';
   };
 
@@ -71,12 +63,12 @@ export default function App() {
             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             width: "300px",
             textAlign: "center",
-            cursor: showProductAPage ? "pointer" : "not-allowed",
-            opacity: showProductAPage ? 1 : 0.6,
+            cursor: productAFlagEnabled ? "pointer" : "not-allowed",
+            opacity: productAFlagEnabled ? 1 : 0.6,
           }}
           onClick={() => {
-            if (showProductAPage) {
-              posthog?.capture('product_a_clicked', {
+            if (productAFlagEnabled) {
+              capture(events.ProductAClicked, {
                 feature_flag_enabled: true,
               });
               setOpenModal(true);
@@ -84,7 +76,7 @@ export default function App() {
           }}
         >
           <h3 style={{ fontSize: "1.25rem", fontWeight: "600" }}>Product A</h3>
-          <p>{showProductAPage ? "Click to learn more." : "Coming soon."}</p>
+          <p>{productAFlagEnabled ? "Click to learn more." : "Coming soon."}</p>
         </div>
 
         <div
@@ -95,25 +87,36 @@ export default function App() {
             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             width: "300px",
             textAlign: "center",
-            cursor: showProductPage ? "pointer" : "not-allowed",
-            opacity: showProductPage ? 1 : 0.6,
+            cursor: productPageFlagEnabled ? "pointer" : "not-allowed",
+            opacity: productPageFlagEnabled ? 1 : 0.6,
           }}
           onClick={() => {
-            if (showProductPage) {
-              posthog?.capture('product_b_clicked', {
+            if (productPageFlagEnabled) {
+              capture(events.ProductBClicked, {
                 feature_flag_enabled: true,
               });
-              setOpenModal(true);
+              navigate('/product-b');
             }
           }}
         >
           <h3 style={{ fontSize: "1.25rem", fontWeight: "600" }}>Product B</h3>
-          <p>{showProductPage ? "Click to learn more." : "Coming soon."}</p>
+          <p>{productPageFlagEnabled ? "Click to learn more." : "Coming soon."}</p>
         </div>
 
-        <div style={{ backgroundColor: "white", padding: "2rem", borderRadius: "1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", width: "300px", textAlign: "center" }}>
+        <div
+          style={{
+            backgroundColor: "white", padding: "2rem", borderRadius: "1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", width: "300px", textAlign: "center",
+            cursor: productCFlagEnabled ? "pointer" : "not-allowed", opacity: productCFlagEnabled ? 1 : 0.6
+          }}
+          onClick={() => {
+            if (productCFlagEnabled) {
+              capture(events.ProductCClicked, { feature_flag_enabled: true });
+              navigate('/product-c');
+            }
+          }}
+        >
           <h3 style={{ fontSize: "1.25rem", fontWeight: "600" }}>Product C</h3>
-          <p>Secure and cutting-edge technology for critical applications.</p>
+          <p>{productCFlagEnabled ? "Click to learn more." : "Coming soon."}</p>
         </div>
       </main>
 
@@ -159,7 +162,7 @@ export default function App() {
                 cursor: "pointer",
               }}
               onClick={() => {
-                posthog?.capture('product_modal_closed');
+                capture(events.ProductModalClosed);
                 setOpenModal(false);
               }}
             >
@@ -170,12 +173,12 @@ export default function App() {
       )}
 
       {/* Feedback Button (PostHog Feature Flag) */}
-      {showFeedback && (
+      {feedbackFlagEnabled && (
         <section style={{ padding: "3rem 2rem", backgroundColor: "#f3f4f6", textAlign: "center" }}>
           <h2 style={{ fontSize: "1.75rem", fontWeight: "600", marginBottom: "1.5rem" }}>We value your feedback</h2>
           <button
             onClick={() => {
-              posthog?.capture('feedback_button_clicked', {
+              capture(events.FeedbackButtonClicked, {
                 feature_flag_enabled: true,
               });
               setOpenFeedback(true);
@@ -229,7 +232,7 @@ export default function App() {
               style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
               onSubmit={(e) => {
                 e.preventDefault();
-                posthog?.capture('feedback_submitted', {
+                capture(events.FeedbackSubmitted, {
                   feature_flag_enabled: true,
                 });
                 alert('Feedback submitted! (This is just a demo)');
@@ -265,7 +268,7 @@ export default function App() {
                 cursor: "pointer",
               }}
               onClick={() => {
-                posthog?.capture('feedback_modal_closed');
+                capture(events.FeedbackModalClosed);
                 setOpenFeedback(false);
               }}
             >

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiPost, saveToken } from '../api.js';
-import posthog from 'posthog-js';
+import { identifyUser, optInAnalytics } from '../analytics/posthog/identity.js';
 
 export default function Auth() {
     const navigate = useNavigate();
@@ -15,13 +15,8 @@ export default function Auth() {
     const isValidEmail = (val) => /[^\s@]+@[^\s@]+\.[^\s@]+/.test(val);
 
     const identifyWithPostHog = (username) => {
-        try {
-            if (!username) return;
-            // Use email as distinct_id and set username as a person property
-            posthog.identify(username, { username });
-        } catch (e) {
-            // noop
-        }
+        try { optInAnalytics(); } catch (_) { }
+        identifyUser(username, { username });
     };
 
     const onSubmit = async (e) => {
